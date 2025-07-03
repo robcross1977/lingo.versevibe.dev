@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
+import Auth from "@/components/auth";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -29,7 +30,9 @@ export default function RootLayout({
                 </h1>
                 <div className="h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center"></div>
               </Link>
-              <div className="flex gap-3"></div>
+              <div className="flex gap-3">
+                <Auth />
+              </div>
             </nav>
           </div>
         </header>
