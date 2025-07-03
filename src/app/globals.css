@@ -1,0 +1,396 @@
+@import "tailwindcss";
+
+@plugin 'tailwindcss-animate';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --color-header: #cdc2a5;
+  --color-background: #e2d9c7;
+  --color-foreground: #403528;
+
+  --color-card: #f7f4f0;
+  --color-card-foreground: #5c4d40;
+
+  --color-popover: #e8e8d9;
+  --color-popover-foreground: #595940;
+
+  --color-primary: #700011;
+  --color-primary-foreground: #fbf7e8;
+
+  --color-secondary: #4b4324;
+  --color-secondary-foreground: #fcfae0;
+
+  --color-muted: #d9d9d9;
+  --color-muted-foreground: #666666;
+
+  --color-accent: #c799c7;
+  --color-accent-foreground: #4d334d;
+
+  --color-destructive: #d99999;
+  --color-destructive-foreground: #4d3333;
+
+  --color-border: #403528;
+  --color-input: #ccbfb3;
+  --color-ring: #ccb8a6;
+
+  --color-button: #d99999;
+  --color-button-foreground: #4d3333;
+  --color-button-hover: #cc8585;
+
+  --color-chart-1: #d99999;
+  --color-chart-2: #c799c7;
+  --color-chart-3: #e8e8d9;
+  --color-chart-4: #f7f4f0;
+  --color-chart-5: #9999c7;
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fade-in 0.5s ease-in;
+  --animate-fade-out: fade-out 0.5s ease-out;
+  --animate-glow: glow 4.5s infinite alternate;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-slide-up: slide-up 0.6s ease-out forwards;
+  --animate-scale-in: scale-in 0.4s ease-out forwards;
+
+  --text-color: #3b3816;
+  --radius: 0.5rem;
+
+  @keyframes glow {
+    0%,
+    100% {
+      text-shadow: 0 0 5px rgba(210, 210, 240, 0.5),
+        0 0 10px rgba(210, 210, 240, 0.5), 0 0 15px rgba(210, 210, 240, 0.5),
+        0 0 20px rgba(210, 210, 240, 0.5);
+    }
+    50% {
+      text-shadow: 0 0 10px rgba(210, 210, 240, 0.7),
+        0 0 15px rgba(210, 210, 240, 0.7), 0 0 20px rgba(210, 210, 240, 0.7),
+        0 0 25px rgba(210, 210, 240, 0.7);
+    }
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes bounce-gentle {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 20px var(--color-primary);
+    }
+    50% {
+      box-shadow: 0 0 40px var(--color-primary);
+    }
+  }
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentColor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 10% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-background);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-primary);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #8b0015;
+  }
+
+  /* Focus styles */
+  .focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  /* Text selection */
+  ::selection {
+    background: var(--color-primary);
+    color: var(--color-primary-foreground);
+  }
+
+  /* Link hover effects */
+  a {
+    transition: all 0.2s ease-in-out;
+  }
+
+  /* Button improvements */
+  button {
+    transition: all 0.2s ease-in-out;
+  }
+
+  /* Image optimization */
+  img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Animation utilities */
+@layer utilities {
+  .animate-fade-up {
+    animation: slide-up 0.6s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.4s ease-out forwards;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.8s ease-out forwards;
+  }
+
+  .animate-bounce-gentle {
+    animation: bounce-gentle 2s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* Stagger animation delays */
+  .stagger-1 {
+    animation-delay: 100ms;
+  }
+  .stagger-2 {
+    animation-delay: 200ms;
+  }
+  .stagger-3 {
+    animation-delay: 300ms;
+  }
+  .stagger-4 {
+    animation-delay: 400ms;
+  }
+  .stagger-5 {
+    animation-delay: 500ms;
+  }
+  .stagger-6 {
+    animation-delay: 600ms;
+  }
+  .stagger-7 {
+    animation-delay: 700ms;
+  }
+  .stagger-8 {
+    animation-delay: 800ms;
+  }
+
+  /* Enhanced hover states */
+  .hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Glassmorphism effect */
+  .glass {
+    backdrop-filter: blur(16px) saturate(180%);
+    background-color: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(209, 213, 219, 0.3);
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, var(--color-primary), #8b0015);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
