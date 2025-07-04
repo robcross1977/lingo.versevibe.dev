@@ -1,6 +1,7 @@
 "use client";
 
-import { useChat } from "ai/react";
+import { useState } from "react";
+import { AIResponse } from "@/components/ui/ai-response";
 import {
   Select,
   SelectContent,
@@ -9,44 +10,215 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Helper to parse the AI's JSON response
-const parseAIResponse = (content: string) => {
-  // Only try to parse if it looks like complete JSON (starts with { and ends with })
-  const trimmed = content.trim();
-  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
-    // If it's not complete JSON, return the raw content as reply
-    return { correction: "", translation: "", reply: content };
-  }
+// Type definitions for our workflow response
+interface SpanishWord {
+  word: string;
+  translation: string;
+  position: number;
+  isKnown: boolean;
+}
 
-  try {
-    const parsed = JSON.parse(content);
-    return {
-      correction: parsed.correction || "",
-      translation: parsed.translation || "",
-      reply: parsed.reply || content, // Fallback to raw content
+interface WorkflowData {
+  userMessage: string;
+  englishTranslations: {
+    translations: Array<{
+      englishWord: string;
+      spanishTranslation: string;
+      confidence: number;
+    }>;
+  };
+  corrections: {
+    hasErrors: boolean;
+    correctedText: string;
+    corrections: Array<{
+      original: string;
+      corrected: string;
+      errorType: string;
+      explanation: string;
+    }>;
+  };
+  contextualReply: {
+    reply: string;
+    newSpanishWord: {
+      word: string;
+      translation: string;
+      position: number;
     };
-  } catch {
-    // If parsing fails, return the raw content as the reply
-    return { correction: "", translation: "", reply: content };
-  }
-};
+    spanishWords: SpanishWord[];
+  };
+  fullTranslation: {
+    fullSpanishSentence: string;
+    difficulty: string;
+  };
+}
+
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
 
 export default function HomePage() {
-  const { messages, input, handleInputChange, handleSubmit } = useChat({
-    streamProtocol: "text",
-    initialMessages: [
-      {
-        id: "1",
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "1",
+      role: "assistant",
+      content: JSON.stringify({
+        success: true,
+        data: {
+          userMessage: "Welcome!",
+          englishTranslations: {
+            translations: [],
+          },
+          corrections: {
+            hasErrors: false,
+            correctedText: "",
+            corrections: [],
+          },
+          contextualReply: {
+            reply:
+              "¡Hola! Welcome to Lingo VerseVibe! I'm here to help you practice Spanish. Feel free to write in Spanish, English, or mix both - I'll help you learn! ¿Cómo estás hoy? (How are you today?)",
+            newSpanishWord: {
+              word: "Hola",
+              translation: "Hello",
+              position: 1,
+            },
+            spanishWords: [
+              {
+                word: "Hola",
+                translation: "Hello",
+                position: 1,
+                isKnown: false,
+              },
+              {
+                word: "Cómo",
+                translation: "How",
+                position: 130,
+                isKnown: false,
+              },
+              {
+                word: "estás",
+                translation: "are you",
+                position: 135,
+                isKnown: false,
+              },
+              {
+                word: "hoy",
+                translation: "today",
+                position: 141,
+                isKnown: false,
+              },
+            ],
+          },
+          fullTranslation: {
+            fullSpanishSentence:
+              "¡Hola! ¡Bienvenido a Lingo VerseVibe! Estoy aquí para ayudarte a practicar español. Siéntete libre de escribir en español, inglés, o mezclar ambos - ¡te ayudaré a aprender! ¿Cómo estás hoy?",
+            difficulty: "beginner",
+          },
+        },
+      }),
+    },
+  ]);
+
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const userMessage = input.trim();
+    setInput("");
+    setIsLoading(true);
+
+    // Add user message to chat
+    const newUserMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: userMessage,
+    };
+
+    setMessages((prev) => [...prev, newUserMessage]);
+
+    try {
+      // Call our API
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [...messages, newUserMessage],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Add AI response to chat
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: JSON.stringify(data),
+        };
+
+        setMessages((prev) => [...prev, aiMessage]);
+      } else {
+        throw new Error(data.error || "Unknown error");
+      }
+    } catch (error) {
+      console.error("Chat error:", error);
+
+      // Add error message
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
         role: "assistant",
         content: JSON.stringify({
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        }),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const parseWorkflowResponse = (content: string) => {
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.success && parsed.data) {
+        return {
+          isWorkflowResponse: true,
+          data: parsed.data as WorkflowData,
+        };
+      }
+      return {
+        isWorkflowResponse: false,
+        fallback: {
           correction: "",
           translation: "",
-          reply:
-            "¡Hola! Welcome to Lingo VerseVibe! I'm here to help you practice Spanish. Feel free to write in Spanish, English, or mix both - I'll help you learn! ¿Cómo estás hoy? (How are you today?)",
-        }),
-      },
-    ],
-  });
+          reply: parsed.error || content,
+          wordTranslations: [],
+        },
+      };
+    } catch {
+      return {
+        isWorkflowResponse: false,
+        fallback: {
+          correction: "",
+          translation: "",
+          reply: content,
+          wordTranslations: [],
+        },
+      };
+    }
+  };
 
   return (
     <div className="container mx-auto p-4 flex-grow flex flex-col">
@@ -68,9 +240,10 @@ export default function HomePage() {
         <div className="flex-grow p-4 overflow-y-auto">
           <div className="flex flex-col gap-4">
             {messages.map((m) => {
-              const aiResponse =
-                m.role === "assistant" ? parseAIResponse(m.content) : null;
-              const displayContent = aiResponse ? aiResponse.reply : m.content;
+              const response =
+                m.role === "assistant"
+                  ? parseWorkflowResponse(m.content)
+                  : null;
 
               return (
                 <div
@@ -85,13 +258,30 @@ export default function HomePage() {
                     </div>
                   )}
                   <div
-                    className={`rounded-lg p-3 max-w-xs ${
-                      m.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
+                    className={`max-w-lg ${
+                      m.role === "user" ? "w-full" : "w-full"
                     }`}
                   >
-                    <p>{displayContent}</p>
+                    {m.role === "assistant" && response ? (
+                      response.isWorkflowResponse && response.data ? (
+                        <AIResponse data={response.data} />
+                      ) : (
+                        // Fallback for old format
+                        <div className="rounded-lg p-3 bg-muted">
+                          <p>{response.fallback?.reply || m.content}</p>
+                        </div>
+                      )
+                    ) : (
+                      <div
+                        className={`rounded-lg p-3 ${
+                          m.role === "user"
+                            ? "bg-primary text-primary-foreground ml-auto max-w-xs"
+                            : "bg-muted"
+                        }`}
+                      >
+                        <p>{m.content}</p>
+                      </div>
+                    )}
                   </div>
                   {m.role === "user" && (
                     <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center font-bold text-secondary flex-shrink-0">
@@ -101,6 +291,25 @@ export default function HomePage() {
                 </div>
               );
             })}
+
+            {/* AI Thinking Indicator */}
+            {isLoading && (
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary flex-shrink-0">
+                  AI
+                </div>
+                <div className="bg-muted rounded-lg p-3 max-w-lg">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                      <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                      <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
+                    </div>
+                    <span className="text-sm">AI is thinking...</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -109,14 +318,18 @@ export default function HomePage() {
           <form className="relative" onSubmit={handleSubmit}>
             <input
               type="text"
-              placeholder="Type a message..."
+              placeholder={
+                isLoading ? "AI is thinking..." : "Type a message..."
+              }
               value={input}
-              onChange={handleInputChange}
-              className="w-full bg-muted rounded-full p-4 pr-16 border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+              onChange={(e) => setInput(e.target.value)}
+              disabled={isLoading}
+              className="w-full bg-muted rounded-full p-4 pr-16 border border-border focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               type="submit"
-              className="absolute right-3 top-1/2 -translate-y-1/2 bg-primary text-primary-foreground rounded-full p-2 hover:bg-primary/90 transition-colors"
+              disabled={isLoading || !input.trim()}
+              className="absolute right-3 top-1/2 -translate-y-1/2 bg-primary text-primary-foreground rounded-full p-2 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

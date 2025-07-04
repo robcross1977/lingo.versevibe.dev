@@ -14,10 +14,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            String         @id @default(cuid())
+  email         String?        @unique
+  name          String?
+  image         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  conversations Conversation[]
+  vocabulary    UserVocabulary[]
+}
+
 model Conversation {
   id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime  @default(now())
   messages  Message[]
+
+  @@index([userId])
 }
 
 model Message {
@@ -26,5 +41,39 @@ model Message {
   content        String
   createdAt      DateTime     @default(now())
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model UserVocabulary {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word         String
+  translation  String
+  status       VocabularyStatus @default(LEARNING)
+  successCount Int      @default(0) @map("success_count")
+  errorCount   Int      @default(0) @map("error_count")
+  lastUsed     DateTime @default(now()) @map("last_used")
+  difficulty   VocabularyDifficulty @default(BEGINNER)
+  contexts     String[]
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, word])
+  @@index([userId])
+  @@index([status])
+  @@index([lastUsed])
+  @@map("user_vocabulary")
+}
+
+enum VocabularyStatus {
+  STRUGGLING
+  LEARNING
+  MASTERED
+}
+
+enum VocabularyDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
 }
