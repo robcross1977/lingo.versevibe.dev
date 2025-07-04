@@ -23,7 +23,7 @@ const SpanishLearningResponseSchema = z.object({
  */
 const translateEnglishStep = createStep({
   id: "translate-english",
-  description: "Identify and translate English words/phrases to Spanish",
+  description: "Identify and translate English words to Spanish",
   inputSchema: z.object({
     userMessage: z.string(),
     knownSpanishWords: z.array(z.string()).default([]),
@@ -41,39 +41,68 @@ const translateEnglishStep = createStep({
       throw new Error("English Translation Agent not found");
     }
 
-    const response = await agent.generate([
-      {
-        role: "user",
-        content: inputData.userMessage,
-      },
-    ]);
+    try {
+      const response = await agent.generate([
+        {
+          role: "user",
+          content: `Analyze this message: "${inputData.userMessage}"`,
+        },
+      ]);
 
-    // Extract tool result
-    let translations: z.infer<typeof EnglishTranslationSchema> = {
-      translations: [],
-    };
-    if (response.toolResults && response.toolResults.length > 0) {
-      const toolResult = response.toolResults[0];
-      if (toolResult.result && typeof toolResult.result === "object") {
-        translations = toolResult.result as z.infer<
-          typeof EnglishTranslationSchema
-        >;
+      console.log("English Translation Agent Response:", response);
+
+      // Check for tool results in the steps
+      if (response.steps && response.steps.length > 0) {
+        for (const step of response.steps) {
+          if (step.toolResults && step.toolResults.length > 0) {
+            const toolResult = step.toolResults[0];
+            if (toolResult.result && typeof toolResult.result === "object") {
+              const result = toolResult.result as z.infer<
+                typeof EnglishTranslationSchema
+              >;
+              return {
+                ...result,
+                userMessage: inputData.userMessage,
+              };
+            }
+            // Try parsing from content if result is a string
+            if (typeof toolResult.result === "string") {
+              try {
+                const parsed = JSON.parse(toolResult.result);
+                return {
+                  ...parsed,
+                  userMessage: inputData.userMessage,
+                };
+              } catch (e) {
+                console.log(
+                  "Failed to parse tool result:",
+                  toolResult.result,
+                  e
+                );
+              }
+            }
+          }
+        }
       }
-    }
 
-    return {
-      ...translations,
-      userMessage: inputData.userMessage,
-    };
+      console.log("No tool results found, returning empty translations");
+      return {
+        translations: [],
+        userMessage: inputData.userMessage,
+      };
+    } catch (error) {
+      console.error("Error in English Translation step:", error);
+      throw error;
+    }
   },
 });
 
 /**
- * Step 2: Correct Spanish text
+ * Step 2: Analyze and correct Spanish text
  */
 const correctSpanishStep = createStep({
   id: "correct-spanish",
-  description: "Analyze and correct Spanish text with explanations",
+  description: "Analyze Spanish text for errors and provide corrections",
   inputSchema: z.object({
     userMessage: z.string(),
     knownSpanishWords: z.array(z.string()).default([]),
@@ -89,27 +118,51 @@ const correctSpanishStep = createStep({
       throw new Error("Spanish Correction Agent not found");
     }
 
-    const response = await agent.generate([
-      {
-        role: "user",
-        content: inputData.userMessage,
-      },
-    ]);
+    try {
+      const response = await agent.generate([
+        {
+          role: "user",
+          content: `Analyze this Spanish text: "${inputData.userMessage}"`,
+        },
+      ]);
 
-    // Extract tool result
-    if (response.toolResults && response.toolResults.length > 0) {
-      const toolResult = response.toolResults[0];
-      if (toolResult.result && typeof toolResult.result === "object") {
-        return toolResult.result as z.infer<typeof CorrectionSchema>;
+      console.log("Spanish Correction Agent Response:", response);
+
+      // Check for tool results in the steps
+      if (response.steps && response.steps.length > 0) {
+        for (const step of response.steps) {
+          if (step.toolResults && step.toolResults.length > 0) {
+            const toolResult = step.toolResults[0];
+            if (toolResult.result && typeof toolResult.result === "object") {
+              return toolResult.result as z.infer<typeof CorrectionSchema>;
+            }
+            // Try parsing from content if result is a string
+            if (typeof toolResult.result === "string") {
+              try {
+                const parsed = JSON.parse(toolResult.result);
+                return parsed;
+              } catch (e) {
+                console.log(
+                  "Failed to parse tool result:",
+                  toolResult.result,
+                  e
+                );
+              }
+            }
+          }
+        }
       }
-    }
 
-    // Fallback
-    return {
-      hasErrors: false,
-      correctedText: inputData.userMessage,
-      corrections: [],
-    };
+      console.log("No tool results found, returning no corrections");
+      return {
+        hasErrors: false,
+        correctedText: inputData.userMessage,
+        corrections: [],
+      };
+    } catch (error) {
+      console.error("Error in Spanish Correction step:", error);
+      throw error;
+    }
   },
 });
 
@@ -135,40 +188,49 @@ const generateContextualReplyStep = createStep({
       throw new Error("Contextual Reply Agent not found");
     }
 
-    const response = await agent.generate([
-      {
-        role: "user",
-        content: `User message: ${
-          inputData.userMessage
-        }\nKnown Spanish words: ${inputData.knownSpanishWords.join(", ")}`,
-      },
-    ]);
-
-    // Extract tool result
-    if (response.toolResults && response.toolResults.length > 0) {
-      const toolResult = response.toolResults[0];
-      if (toolResult.result && typeof toolResult.result === "object") {
-        return toolResult.result as z.infer<typeof ReplySchema>;
-      }
-    }
-
-    // Fallback
-    return {
-      reply: "¡Hola! Thanks for practicing Spanish with me!",
-      newSpanishWord: {
-        word: "Hola",
-        translation: "Hello",
-        position: 1,
-      },
-      spanishWords: [
+    try {
+      const response = await agent.generate([
         {
-          word: "Hola",
-          translation: "Hello",
-          position: 1,
-          isKnown: false,
+          role: "user",
+          content: `User message: ${
+            inputData.userMessage
+          }\nKnown Spanish words: ${inputData.knownSpanishWords.join(", ")}`,
         },
-      ],
-    };
+      ]);
+
+      console.log("Contextual Reply Agent Response:", response);
+
+      // Check for tool results in the steps
+      if (response.steps && response.steps.length > 0) {
+        for (const step of response.steps) {
+          if (step.toolResults && step.toolResults.length > 0) {
+            const toolResult = step.toolResults[0];
+            if (toolResult.result && typeof toolResult.result === "object") {
+              return toolResult.result as z.infer<typeof ReplySchema>;
+            }
+            // Try parsing from content if result is a string
+            if (typeof toolResult.result === "string") {
+              try {
+                const parsed = JSON.parse(toolResult.result);
+                return parsed;
+              } catch (e) {
+                console.log(
+                  "Failed to parse tool result:",
+                  toolResult.result,
+                  e
+                );
+              }
+            }
+          }
+        }
+      }
+
+      console.log("No tool results found in contextual reply");
+      throw new Error("Contextual Reply Agent failed to generate response");
+    } catch (error) {
+      console.error("Error in Contextual Reply step:", error);
+      throw error;
+    }
   },
 });
 
@@ -203,35 +265,73 @@ const generateFullTranslationStep = createStep({
       throw new Error("Full Translation Agent not found");
     }
 
-    // Translate the AI's reply to full Spanish
-    const response = await agent.generate([
-      {
-        role: "user",
-        content: `Translate this AI response to complete Spanish: "${inputData["generate-contextual-reply"].reply}"`,
-      },
-    ]);
+    try {
+      // Translate the AI's reply to full Spanish
+      const response = await agent.generate([
+        {
+          role: "user",
+          content: `AI Reply to translate: "${inputData["generate-contextual-reply"].reply}"`,
+        },
+      ]);
 
-    // Extract tool result
-    let fullTranslation: z.infer<typeof FullTranslationSchema> = {
-      fullSpanishSentence: inputData["generate-contextual-reply"].reply,
-      difficulty: "beginner",
-    };
+      console.log("Full Translation Agent Response:", response);
 
-    if (response.toolResults && response.toolResults.length > 0) {
-      const toolResult = response.toolResults[0];
-      if (toolResult.result && typeof toolResult.result === "object") {
-        fullTranslation = toolResult.result as z.infer<
-          typeof FullTranslationSchema
-        >;
+      // Check for tool results in the steps
+      if (response.steps && response.steps.length > 0) {
+        for (const step of response.steps) {
+          if (step.toolResults && step.toolResults.length > 0) {
+            const toolResult = step.toolResults[0];
+            if (toolResult.result && typeof toolResult.result === "object") {
+              const result = toolResult.result as z.infer<
+                typeof FullTranslationSchema
+              >;
+              return {
+                "translate-english": inputData["translate-english"],
+                "correct-spanish": inputData["correct-spanish"],
+                "generate-contextual-reply":
+                  inputData["generate-contextual-reply"],
+                "full-translation": result,
+              };
+            }
+            // Try parsing from content if result is a string
+            if (typeof toolResult.result === "string") {
+              try {
+                const parsed = JSON.parse(toolResult.result);
+                return {
+                  "translate-english": inputData["translate-english"],
+                  "correct-spanish": inputData["correct-spanish"],
+                  "generate-contextual-reply":
+                    inputData["generate-contextual-reply"],
+                  "full-translation": parsed,
+                };
+              } catch (e) {
+                console.log(
+                  "Failed to parse full translation tool result:",
+                  toolResult.result,
+                  e
+                );
+              }
+            }
+          }
+        }
       }
-    }
 
-    return {
-      "translate-english": inputData["translate-english"],
-      "correct-spanish": inputData["correct-spanish"],
-      "generate-contextual-reply": inputData["generate-contextual-reply"],
-      "full-translation": fullTranslation,
-    };
+      console.log("No tool results found for full translation, using fallback");
+
+      // Fallback - but this should be a proper translation, not just copying the reply
+      return {
+        "translate-english": inputData["translate-english"],
+        "correct-spanish": inputData["correct-spanish"],
+        "generate-contextual-reply": inputData["generate-contextual-reply"],
+        "full-translation": {
+          fullSpanishSentence: inputData["generate-contextual-reply"].reply,
+          difficulty: "beginner",
+        },
+      };
+    } catch (error) {
+      console.error("Error in Full Translation step:", error);
+      throw error;
+    }
   },
 });
 

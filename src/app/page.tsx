@@ -48,69 +48,70 @@ const parseWorkflowResponse = (content: string) => {
 };
 
 export default function HomePage() {
-  const { messages, input, handleInputChange, handleSubmit } = useChat({
-    streamProtocol: "text",
-    initialMessages: [
-      {
-        id: "1",
-        role: "assistant",
-        content: JSON.stringify({
-          success: true,
-          data: {
-            userMessage: "Welcome!",
-            englishTranslations: {
-              translations: [],
-            },
-            corrections: {
-              hasErrors: false,
-              correctedText: "",
-              corrections: [],
-            },
-            contextualReply: {
-              reply:
-                "¡Hola! Welcome to Lingo VerseVibe! I'm here to help you practice Spanish. Feel free to write in Spanish, English, or mix both - I'll help you learn! ¿Cómo estás hoy? (How are you today?)",
-              newSpanishWord: {
-                word: "Hola",
-                translation: "Hello",
-                position: 1,
+  const { messages, input, handleInputChange, handleSubmit, isLoading } =
+    useChat({
+      streamProtocol: "text",
+      initialMessages: [
+        {
+          id: "1",
+          role: "assistant",
+          content: JSON.stringify({
+            success: true,
+            data: {
+              userMessage: "Welcome!",
+              englishTranslations: {
+                translations: [],
               },
-              spanishWords: [
-                {
+              corrections: {
+                hasErrors: false,
+                correctedText: "",
+                corrections: [],
+              },
+              contextualReply: {
+                reply:
+                  "¡Hola! Welcome to Lingo VerseVibe! I'm here to help you practice Spanish. Feel free to write in Spanish, English, or mix both - I'll help you learn! ¿Cómo estás hoy? (How are you today?)",
+                newSpanishWord: {
                   word: "Hola",
                   translation: "Hello",
                   position: 1,
-                  isKnown: false,
                 },
-                {
-                  word: "Cómo",
-                  translation: "How",
-                  position: 130,
-                  isKnown: false,
-                },
-                {
-                  word: "estás",
-                  translation: "are you",
-                  position: 135,
-                  isKnown: false,
-                },
-                {
-                  word: "hoy",
-                  translation: "today",
-                  position: 141,
-                  isKnown: false,
-                },
-              ],
+                spanishWords: [
+                  {
+                    word: "Hola",
+                    translation: "Hello",
+                    position: 1,
+                    isKnown: false,
+                  },
+                  {
+                    word: "Cómo",
+                    translation: "How",
+                    position: 130,
+                    isKnown: false,
+                  },
+                  {
+                    word: "estás",
+                    translation: "are you",
+                    position: 135,
+                    isKnown: false,
+                  },
+                  {
+                    word: "hoy",
+                    translation: "today",
+                    position: 141,
+                    isKnown: false,
+                  },
+                ],
+              },
+              fullTranslation: {
+                fullSpanishSentence:
+                  "¡Hola! ¡Bienvenido a Lingo VerseVibe! Estoy aquí para ayudarte a practicar español. Siéntete libre de escribir en español, inglés, o mezclar ambos - ¡te ayudaré a aprender! ¿Cómo estás hoy?",
+                difficulty: "beginner",
+              },
             },
-            fullTranslation: {
-              fullSpanishSentence:
-                "¡Hola! ¡Bienvenido a Lingo VerseVibe! Estoy aquí para ayudarte a practicar español. Siéntete libre de escribir en español, inglés, o mezclar ambos - ¡te ayudaré a aprender! ¿Cómo estás hoy?",
-              difficulty: "beginner",
-            },
-          },
-        }),
-      },
-    ],
-  });
+          }),
+        },
+      ],
+    });
 
   return (
     <div className="container mx-auto p-4 flex-grow flex flex-col">
@@ -183,6 +184,25 @@ export default function HomePage() {
                 </div>
               );
             })}
+
+            {/* AI Thinking Indicator */}
+            {isLoading && (
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary flex-shrink-0">
+                  AI
+                </div>
+                <div className="bg-muted rounded-lg p-3 max-w-lg">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                      <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                      <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
+                    </div>
+                    <span className="text-sm">AI is thinking...</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -191,14 +211,18 @@ export default function HomePage() {
           <form className="relative" onSubmit={handleSubmit}>
             <input
               type="text"
-              placeholder="Type a message..."
+              placeholder={
+                isLoading ? "AI is thinking..." : "Type a message..."
+              }
               value={input}
               onChange={handleInputChange}
-              className="w-full bg-muted rounded-full p-4 pr-16 border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+              disabled={isLoading}
+              className="w-full bg-muted rounded-full p-4 pr-16 border border-border focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               type="submit"
-              className="absolute right-3 top-1/2 -translate-y-1/2 bg-primary text-primary-foreground rounded-full p-2 hover:bg-primary/90 transition-colors"
+              disabled={isLoading || !input.trim()}
+              className="absolute right-3 top-1/2 -translate-y-1/2 bg-primary text-primary-foreground rounded-full p-2 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

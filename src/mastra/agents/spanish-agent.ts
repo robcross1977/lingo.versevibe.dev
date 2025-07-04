@@ -99,13 +99,28 @@ export const englishTranslationTool = createTool({
     const { object } = await generateObject({
       model: openai("gpt-4o-mini"),
       schema: EnglishTranslationSchema,
-      system: `You are a Spanish translation expert. Identify English words or phrases in the user's message and provide Spanish translations.
+      system: `You are a Spanish translation expert. Analyze text and identify English words/phrases with their Spanish translations.
+
+REQUIRED JSON STRUCTURE:
+{
+  "translations": [
+    {
+      "englishWord": "hello",
+      "spanishTranslation": "hola", 
+      "confidence": 0.95
+    }
+  ]
+}
+
+RULES:
+- Only identify clear English words/phrases
+- Provide accurate Spanish translations
+- Confidence should be 0.0 to 1.0 (1.0 = completely confident)
+- If no English words found, return empty array
+- Focus on individual words and common phrases`,
+      prompt: `Analyze this message and identify English words/phrases with their Spanish translations: "${context.userMessage}"
       
-Focus on:
-- Individual words and common phrases
-- Provide accurate, contextually appropriate translations
-- Rate confidence level based on how certain the translation is`,
-      prompt: `Analyze this message and identify English words/phrases with their Spanish translations: "${context.userMessage}"`,
+Return a JSON object with the translations array.`,
     });
     return object;
   },
@@ -156,24 +171,58 @@ export const contextualReplyTool = createTool({
     const { object } = await generateObject({
       model: openai("gpt-4o-mini"),
       schema: ReplySchema,
-      system: `You are a Spanish learning conversation partner. Your role is to respond to the user in a way that helps them learn Spanish gradually.
+      system: `You are a Spanish learning conversation partner. Generate a MOSTLY ENGLISH response with strategic Spanish words.
 
-CRITICAL RULES:
-1. Respond conversationally to what the user said
-2. Use ONLY Spanish words from the knownSpanishWords list (if any are provided)
-3. Use English for all other words EXCEPT introduce exactly ONE new Spanish word
-4. The new Spanish word should be simple and relevant to the conversation
-5. Mark the new word clearly and provide its translation
-6. Keep responses encouraging and natural
-7. Provide accurate position data for ALL Spanish words in your response
+CRITICAL: Your reply should be PRIMARILY IN ENGLISH with only specific Spanish words mixed in.
 
-EXAMPLE:
-User says: "hola, como te va!"
-Known words: ["hola", "como"]
-Your response might be: "¡Hola! I'm doing great, gracias! How was your día today?"
-(Here "gracias" is the new word, "día" would be too many new words)
+LANGUAGE RULES (VERY IMPORTANT):
+1. Write your response in ENGLISH as the base language
+2. ONLY replace English words with Spanish IF they are in the knownSpanishWords list
+3. Add exactly ONE new Spanish word (simple and relevant)
+4. Everything else MUST remain in ENGLISH
 
-Be conversational and helpful while following these vocabulary constraints strictly.`,
+EXAMPLE (if knownSpanishWords = ["hola"]):
+❌ WRONG: "¡Hola! Estoy muy bien, gracias. ¿Cómo estás tú?"
+✅ CORRECT: "¡Hola! I'm doing great, gracias! How are you?"
+
+JSON STRUCTURE REQUIREMENTS:
+- "reply": string with your MOSTLY ENGLISH conversational response
+- "newSpanishWord": object with "word", "translation", and "position" (number)
+- "spanishWords": array of objects, each with "word", "translation", "position" (number), and "isKnown" (boolean)
+
+CONVERSATION RULES:
+1. Respond naturally to what the user said IN ENGLISH
+2. Use ONLY Spanish words from the knownSpanishWords list (mark these as "isKnown": true)
+3. Keep ALL other words in ENGLISH except introduce exactly ONE new Spanish word (mark as "isKnown": false)
+4. The new Spanish word should be simple and relevant
+5. Calculate accurate character positions for ALL Spanish words
+6. ALWAYS include the "isKnown" boolean field for every Spanish word
+
+EXAMPLE OUTPUT:
+{
+  "reply": "¡Hola! I'm doing great, gracias! How are you?",
+  "newSpanishWord": {
+    "word": "gracias",
+    "translation": "thank you",
+    "position": 25
+  },
+  "spanishWords": [
+    {
+      "word": "Hola",
+      "translation": "Hello",
+      "position": 1,
+      "isKnown": true
+    },
+    {
+      "word": "gracias",
+      "translation": "thank you", 
+      "position": 25,
+      "isKnown": false
+    }
+  ]
+}
+
+Keep responses short, encouraging, and conversational - but MOSTLY IN ENGLISH!`,
       prompt: `User message: "${context.userMessage}"
 Known Spanish words: ${
         context.knownSpanishWords.length > 0
@@ -181,7 +230,7 @@ Known Spanish words: ${
           : "none yet"
       }
 
-Generate an encouraging reply that responds to their message while following the vocabulary learning rules.`,
+Generate a conversational reply that is MOSTLY ENGLISH with only the known Spanish words plus one new Spanish word. Follow the exact JSON structure above.`,
     });
     return object;
   },
@@ -192,22 +241,37 @@ Generate an encouraging reply that responds to their message while following the
  */
 export const fullTranslationTool = createTool({
   id: "full-spanish-translation",
-  description: "Provide complete Spanish translation of the user's message",
+  description: "Provide complete Spanish translation of the AI's reply",
   inputSchema: z.object({
-    userMessage: z.string().describe("User's message to translate"),
+    aiReply: z.string().describe("AI's reply to translate to complete Spanish"),
   }),
   outputSchema: FullTranslationSchema,
   execute: async ({ context }) => {
     const { object } = await generateObject({
       model: openai("gpt-4o-mini"),
       schema: FullTranslationSchema,
-      system: `You are a Spanish translation expert. Provide a complete, natural Spanish translation of the user's message.
+      system: `You are a Spanish translation expert. Your job is to translate mixed English/Spanish AI responses into complete, natural Spanish.
 
-Focus on:
-- Natural, conversational Spanish
-- Appropriate register for the context
-- Assess difficulty level for Spanish learners`,
-      prompt: `Translate this complete message to Spanish: "${context.userMessage}"`,
+REQUIRED JSON STRUCTURE:
+{
+  "fullSpanishSentence": "Complete Spanish translation here",
+  "difficulty": "beginner"
+}
+
+RULES:
+- Translate the ENTIRE message to natural, conversational Spanish
+- Convert all English words to appropriate Spanish equivalents
+- Keep any existing Spanish words as they are (unless they need grammar adjustments)
+- Choose appropriate difficulty: "beginner", "intermediate", or "advanced"
+- Maintain the same meaning, tone, and conversational style
+- Focus on how a native Spanish speaker would naturally say it
+
+EXAMPLE:
+Input: "¡Hola! I'm doing great, gracias! How are you?"
+Output: "¡Hola! Estoy muy bien, ¡gracias! ¿Cómo estás?"`,
+      prompt: `Translate this AI response to complete Spanish: "${context.aiReply}"
+
+Return a JSON object with the full Spanish translation and difficulty level.`,
     });
     return object;
   },
@@ -238,10 +302,16 @@ export const spanishCorrectionAgent = new Agent({
  */
 export const contextualReplyAgent = new Agent({
   name: "Contextual Reply Agent",
-  instructions: `You are a Spanish learning conversation partner. Your job is to help users learn Spanish gradually by responding to their messages using mostly English but strategically introducing Spanish words.
+  instructions: `You are a Spanish learning conversation partner. Your job is to help users learn Spanish gradually by responding to their messages using MOSTLY ENGLISH but strategically introducing Spanish words.
+
+CRITICAL: Your responses should be PRIMARILY IN ENGLISH. Only use Spanish for:
+1. Spanish words they already know (from their vocabulary list)
+2. Exactly one new Spanish word to teach them
+
+Everything else MUST be in English. This is a gradual learning approach.
 
 ALWAYS use the generate-contextual-reply tool to create responses that:
-- Respond naturally to what the user said
+- Respond naturally to what the user said IN ENGLISH
 - Use Spanish words they already know (from their vocabulary list)
 - Use English for everything else, EXCEPT introduce exactly one new Spanish word
 - Make the conversation encouraging and supportive
@@ -256,7 +326,7 @@ You must ALWAYS call the generate-contextual-reply tool - never respond directly
  */
 export const fullTranslationAgent = new Agent({
   name: "Full Translation Agent",
-  instructions: `You provide complete, natural Spanish translations of user messages. Focus on conversational, appropriate Spanish that learners can aspire to. Always use the full-spanish-translation tool.`,
+  instructions: `You provide complete, natural Spanish translations of AI responses. Your job is to take mixed English/Spanish AI replies and convert them to complete Spanish that learners can see as their goal. Always use the full-spanish-translation tool.`,
   model: openai("gpt-4o-mini"),
   tools: { fullTranslationTool },
 });
