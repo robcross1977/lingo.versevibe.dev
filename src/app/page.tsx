@@ -8,26 +8,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AIResponse } from "@/components/ui/ai-response";
 
-// Helper to parse the AI's JSON response
-const parseAIResponse = (content: string) => {
-  // Only try to parse if it looks like complete JSON (starts with { and ends with })
-  const trimmed = content.trim();
-  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
-    // If it's not complete JSON, return the raw content as reply
-    return { correction: "", translation: "", reply: content };
-  }
-
+// Helper to parse the new workflow API response
+const parseWorkflowResponse = (content: string) => {
   try {
     const parsed = JSON.parse(content);
+
+    // Check if this is the new workflow response format
+    if (parsed.success && parsed.data) {
+      return {
+        isWorkflowResponse: true,
+        data: parsed.data,
+      };
+    }
+
+    // Fallback for old format or plain text
     return {
-      correction: parsed.correction || "",
-      translation: parsed.translation || "",
-      reply: parsed.reply || content, // Fallback to raw content
+      isWorkflowResponse: false,
+      fallback: {
+        correction: "",
+        translation: "",
+        reply: content,
+        wordTranslations: [],
+      },
     };
   } catch {
     // If parsing fails, return the raw content as the reply
-    return { correction: "", translation: "", reply: content };
+    return {
+      isWorkflowResponse: false,
+      fallback: {
+        correction: "",
+        translation: "",
+        reply: content,
+        wordTranslations: [],
+      },
+    };
   }
 };
 
@@ -39,10 +55,58 @@ export default function HomePage() {
         id: "1",
         role: "assistant",
         content: JSON.stringify({
-          correction: "",
-          translation: "",
-          reply:
-            "¡Hola! Welcome to Lingo VerseVibe! I'm here to help you practice Spanish. Feel free to write in Spanish, English, or mix both - I'll help you learn! ¿Cómo estás hoy? (How are you today?)",
+          success: true,
+          data: {
+            userMessage: "Welcome!",
+            englishTranslations: {
+              translations: [],
+            },
+            corrections: {
+              hasErrors: false,
+              correctedText: "",
+              corrections: [],
+            },
+            contextualReply: {
+              reply:
+                "¡Hola! Welcome to Lingo VerseVibe! I'm here to help you practice Spanish. Feel free to write in Spanish, English, or mix both - I'll help you learn! ¿Cómo estás hoy? (How are you today?)",
+              newSpanishWord: {
+                word: "Hola",
+                translation: "Hello",
+                position: 1,
+              },
+              spanishWords: [
+                {
+                  word: "Hola",
+                  translation: "Hello",
+                  position: 1,
+                  isKnown: false,
+                },
+                {
+                  word: "Cómo",
+                  translation: "How",
+                  position: 130,
+                  isKnown: false,
+                },
+                {
+                  word: "estás",
+                  translation: "are you",
+                  position: 135,
+                  isKnown: false,
+                },
+                {
+                  word: "hoy",
+                  translation: "today",
+                  position: 141,
+                  isKnown: false,
+                },
+              ],
+            },
+            fullTranslation: {
+              fullSpanishSentence:
+                "¡Hola! ¡Bienvenido a Lingo VerseVibe! Estoy aquí para ayudarte a practicar español. Siéntete libre de escribir en español, inglés, o mezclar ambos - ¡te ayudaré a aprender! ¿Cómo estás hoy?",
+              difficulty: "beginner",
+            },
+          },
         }),
       },
     ],
@@ -68,9 +132,10 @@ export default function HomePage() {
         <div className="flex-grow p-4 overflow-y-auto">
           <div className="flex flex-col gap-4">
             {messages.map((m) => {
-              const aiResponse =
-                m.role === "assistant" ? parseAIResponse(m.content) : null;
-              const displayContent = aiResponse ? aiResponse.reply : m.content;
+              const response =
+                m.role === "assistant"
+                  ? parseWorkflowResponse(m.content)
+                  : null;
 
               return (
                 <div
@@ -85,13 +150,30 @@ export default function HomePage() {
                     </div>
                   )}
                   <div
-                    className={`rounded-lg p-3 max-w-xs ${
-                      m.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
+                    className={`max-w-lg ${
+                      m.role === "user" ? "w-full" : "w-full"
                     }`}
                   >
-                    <p>{displayContent}</p>
+                    {m.role === "assistant" && response ? (
+                      response.isWorkflowResponse ? (
+                        <AIResponse data={response.data} />
+                      ) : (
+                        // Fallback for old format
+                        <div className="rounded-lg p-3 bg-muted">
+                          <p>{response.fallback?.reply || m.content}</p>
+                        </div>
+                      )
+                    ) : (
+                      <div
+                        className={`rounded-lg p-3 ${
+                          m.role === "user"
+                            ? "bg-primary text-primary-foreground ml-auto max-w-xs"
+                            : "bg-muted"
+                        }`}
+                      >
+                        <p>{m.content}</p>
+                      </div>
+                    )}
                   </div>
                   {m.role === "user" && (
                     <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center font-bold text-secondary flex-shrink-0">

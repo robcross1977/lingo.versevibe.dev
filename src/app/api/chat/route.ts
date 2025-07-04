@@ -4,21 +4,49 @@ export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
 
-    const agent = mastra.getAgent("spanishAgent");
-    const result = await agent.stream(messages);
+    // Get the latest user message
+    const userMessage = messages[messages.length - 1]?.content || "";
 
-    return new Response(result.textStream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
+    // Get the Spanish learning workflow from Mastra
+    const workflow = mastra.getWorkflow("spanishLearningWorkflow");
+
+    if (!workflow) {
+      throw new Error("Spanish learning workflow not found");
+    }
+
+    // Create a workflow run
+    const run = await workflow.createRunAsync();
+
+    // For now, use empty known words array - we'll add memory back later
+    const knownSpanishWords: string[] = [];
+
+    // Execute the workflow with the user's message
+    const result = await run.start({
+      inputData: {
+        userMessage,
+        knownSpanishWords,
       },
     });
+
+    // Check if workflow was successful
+    if (result.status === "success") {
+      return Response.json({
+        success: true,
+        data: result.result,
+      });
+    } else if (result.status === "failed") {
+      throw new Error(`Workflow failed: ${result.error.message}`);
+    } else {
+      throw new Error("Workflow was suspended or in unknown state");
+    }
   } catch (error) {
-    console.error("API Error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error("Chat API error:", error);
+    return Response.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
   }
 }

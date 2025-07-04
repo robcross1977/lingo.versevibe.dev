@@ -16,6 +16,8 @@
     "@mastra/libsql": "^0.11.0",
     "@mastra/loggers": "^0.10.3",
     "@mastra/memory": "^0.11.1",
+    "@mastra/pg": "^0.12.1",
+    "@mastra/rag": "^1.0.1",
     "@prisma/client": "^6.11.1",
     "@radix-ui/react-scroll-area": "^1.2.9",
     "@radix-ui/react-select": "^2.2.5",
