@@ -1,9 +1,7 @@
 import { createYoga, createSchema } from "graphql-yoga";
-import { PrismaClient } from "@/generated/prisma";
 import { auth } from "../../../../auth";
 import type { Session } from "next-auth";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 /**
  * GraphQL context type including authentication session

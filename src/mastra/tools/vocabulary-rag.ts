@@ -1,13 +1,7 @@
 import { createTool } from "@mastra/core";
 import { z } from "zod";
-import {
-  PrismaClient,
-  VocabularyStatus,
-  VocabularyDifficulty,
-} from "../../generated/prisma";
-
-// Prisma client instance
-const prisma = new PrismaClient();
+import { VocabularyStatus, VocabularyDifficulty } from "../../generated/prisma";
+import { prisma } from "../../lib/prisma";
 
 /**
  * Vocabulary entry schema matching Prisma model
