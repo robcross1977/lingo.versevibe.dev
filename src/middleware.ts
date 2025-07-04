@@ -1,13 +1,15 @@
-import { NextResponse } from "next/server";
+import { auth } from "../auth";
+import { NextRequest } from "next/server";
 
 /**
- * Middleware temporarily disabled while setting up authentication
- * Will be re-enabled once auth providers are properly configured
+ * Authentication middleware that protects routes
+ * Currently allows all requests to pass through until auth providers are configured
  */
-export function middleware() {
-  // Allow all requests to pass through for now
-  return NextResponse.next();
-}
+export default auth(async function middleware(req: NextRequest) {
+  // The auth() wrapper will handle authentication automatically
+  // You can add custom middleware logic here if needed
+  console.log("Auth middleware:", req.nextUrl.pathname);
+});
 
 export const config = {
   matcher: [

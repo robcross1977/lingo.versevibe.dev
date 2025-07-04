@@ -1,66 +1,86 @@
 import NextAuth from "next-auth";
 import Auth0 from "next-auth/providers/auth0";
-import GitHub from "next-auth/providers/github";
 import type { NextAuthConfig } from "next-auth";
 
 /**
- * Gets providers based on available environment variables
- * Falls back to GitHub or development provider if Auth0 is not configured
+ * Gets Auth0 configuration with fallback for development
+ * In production, all Auth0 environment variables are required
  */
-const getProviders = () => {
-  const providers = [];
+const getAuthConfig = () => {
+  const isDevelopment = process.env.NODE_ENV === "development";
 
-  // Add Auth0 if configured
-  if (
+  // Check if Auth0 is configured
+  const hasAuth0Config =
     process.env.AUTH0_CLIENT_ID &&
     process.env.AUTH0_CLIENT_SECRET &&
-    process.env.AUTH0_DOMAIN
-  ) {
-    providers.push(
+    process.env.AUTH0_DOMAIN;
+
+  if (!hasAuth0Config && !isDevelopment) {
+    throw new Error(
+      "Missing required Auth0 environment variables: AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_DOMAIN. " +
+        "Please check your .env.local file and ensure all Auth0 variables are set."
+    );
+  }
+
+  // In development, provide fallback configuration if Auth0 is not set up
+  if (!hasAuth0Config && isDevelopment) {
+    console.warn(
+      "⚠️  Auth0 not configured. Authentication will be disabled in development mode. " +
+        "Set AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, and AUTH0_DOMAIN to enable authentication."
+    );
+    return {
+      providers: [],
+      callbacks: {
+        session({ session, token }: any) {
+          if (token.sub) {
+            session.user.id = token.sub;
+          }
+          return session;
+        },
+        jwt({ token, account }: any) {
+          if (account) {
+            token.accessToken = account.access_token;
+          }
+          return token;
+        },
+      },
+    };
+  }
+
+  // Auth0 is configured
+  return {
+    providers: [
       Auth0({
-        clientId: process.env.AUTH0_CLIENT_ID,
-        clientSecret: process.env.AUTH0_CLIENT_SECRET,
-        issuer: process.env.AUTH0_DOMAIN,
-        wellKnown: `${process.env.AUTH0_DOMAIN}/.well-known/openid_configuration`,
-      })
-    );
-  }
-
-  // Add GitHub if configured
-  if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
-    providers.push(
-      GitHub({
-        clientId: process.env.GITHUB_CLIENT_ID,
-        clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      })
-    );
-  }
-
-  return providers;
+        clientId: process.env.AUTH0_CLIENT_ID!,
+        clientSecret: process.env.AUTH0_CLIENT_SECRET!,
+        issuer: process.env.AUTH0_DOMAIN!,
+      }),
+    ],
+    callbacks: {
+      session({ session, token }: any) {
+        // Ensure the user ID is available in the session
+        if (token.sub) {
+          session.user.id = token.sub;
+        }
+        return session;
+      },
+      jwt({ token, account }: any) {
+        // Persist the OAuth account info to the token
+        if (account) {
+          token.accessToken = account.access_token;
+        }
+        return token;
+      },
+    },
+  };
 };
 
+const authConfig = getAuthConfig();
+
 export const config = {
-  secret:
-    process.env.NEXTAUTH_SECRET ||
-    process.env.AUTH_SECRET ||
-    "fallback-secret-for-development",
-  providers: getProviders(),
-  callbacks: {
-    session({ session, token }) {
-      // Ensure the user ID is available in the session
-      if (token.sub) {
-        session.user.id = token.sub;
-      }
-      return session;
-    },
-    jwt({ token, account }) {
-      // Persist the OAuth account info to the token
-      if (account) {
-        token.accessToken = account.access_token;
-      }
-      return token;
-    },
-  },
+  ...authConfig,
+  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+  trustHost: true,
   session: {
     strategy: "jwt" as const,
   },
